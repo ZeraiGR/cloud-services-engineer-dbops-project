@@ -10,7 +10,17 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
 
-    #### Добавьте шаг с Flyway-миграциями
+    #### Шаг с Flyway-миграциями
+    - name: Run Flyway migrations
+      uses: flyway/flyway-runner-action@v1
+      with:
+        flywayCommand: migrate
+        flywayConfig:
+          url: jdbc:postgresql://${{ secrets.DB_HOST }}:${{ secrets.DB_PORT }}/${{ secrets.DB_NAME }}
+          user: ${{ secrets.DB_USER }}
+          password: ${{ secrets.DB_PASSWORD }}
+          locations: filesystem:./migrations
+          baselineOnMigrate: true
 
     ### Этот шаг оставьте без изменений
     - name: Download and setup autotests binaries
