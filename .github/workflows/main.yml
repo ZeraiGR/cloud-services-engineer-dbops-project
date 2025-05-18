@@ -10,17 +10,31 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
 
-    #### Шаг с Flyway-миграциями
-    - name: Run Flyway migrations
-      uses: flyway/flyway-runner-action@v1
+    # Устанавливаем JDK, который нужен для запуска приложений, написанных на Java (Flyway)
+    - name: Set up JDK
+      uses: actions/setup-java@v2
       with:
-        flywayCommand: migrate
-        flywayConfig:
-          url: jdbc:postgresql://${{ secrets.DB_HOST }}:${{ secrets.DB_PORT }}/${{ secrets.DB_NAME }}
-          user: ${{ secrets.DB_USER }}
-          password: ${{ secrets.DB_PASSWORD }}
-          locations: filesystem:./migrations
-          baselineOnMigrate: true
+        distribution: 'temurin'
+        java-version: '11'
+
+    # Загружаем и устанавливаем Flyway, чтобы можно было использовать его для управления миграциями
+    - name: Install Flyway
+      run: |
+        curl -L -o flyway-commandline.tar.gz "https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/11.1.0/flyway-commandline-11.1.0-linux-x64.tar.gz"
+        tar -xzf flyway-commandline.tar.gz
+        sudo ln -s `pwd`/flyway-11.1.0/flyway /usr/local/bin/flyway
+
+    # Проверяем, что Postgres работает и доступен перед выполнением миграций, чтобы избежать ошибок подключения
+    - name: Wait for Postgres
+      run: until pg_isready -h ${{ secrets.DB_HOST }} -p ${{ secrets.DB_PORT }}; do sleep 1; done
+   
+    # Выполняем миграции с помощью Flyway, используя URL подключения и учётные данные для базы данных
+    - name: Run Flyway migrations
+      env:
+        FLYWAY_URL: "jdbc:postgresql://${{ secrets.DB_HOST }}:${{ secrets.DB_PORT }}/${{ secrets.DB_NAME }}"
+        FLYWAY_USER: ${{ secrets.DB_USER }}
+        FLYWAY_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      run: flyway migrate -locations=filesystem:migrations
 
     ### Этот шаг оставьте без изменений
     - name: Download and setup autotests binaries
